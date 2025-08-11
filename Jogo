@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flappy Bird Simples</title>
+  <style>
+    body { margin:0; background:#70c5ce; overflow:hidden; }
+    canvas { display:block; margin:0 auto; background:#70c5ce; }
+    #score { 
+      position:absolute; 
+      top:20px; 
+      left:50%; 
+      transform:translateX(-50%);
+      font-size:30px;
+      font-family:sans-serif;
+      font-weight:bold;
+      color:white;
+      text-shadow:2px 2px 4px black;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">0</div>
+  <canvas id="gameCanvas" width="320" height="480"></canvas>
+  
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+
+    // Sons
+    const jumpSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+    const pointSound = new Audio("https://actions.google.com/sounds/v1/cartoon/slide_whistle_to_drum.ogg");
+    const hitSound = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+
+    let birdX = 50, birdY = 150, birdRadius = 12;
+    let gravity = 0.4, velocity = 0, jump = -6;
+    let pipes = [];
+    let frame = 0;
+    let score = 0;
+    let gameOver = false;
+    let pipeSpeed = 1.5; // Velocidade inicial
+
+    // Criar canos
+    function createPipe() {
+      let gap = 100;
+      let topHeight = Math.random() * (canvas.height - gap - 40) + 20;
+      pipes.push({
+        x: canvas.width,
+        top: topHeight,
+        bottom: topHeight + gap
+      });
+    }
+
+    function drawBird() {
+      ctx.beginPath();
+      ctx.arc(birdX, birdY, birdRadius, 0, Math.PI * 2);
+      ctx.fillStyle = "yellow";
+      ctx.fill();
+      ctx.strokeStyle = "orange";
+      ctx.stroke();
+    }
+
+    function drawPipes() {
+      ctx.fillStyle = "green";
+      pipes.forEach(pipe => {
+        ctx.fillRect(pipe.x, 0, 30, pipe.top);
+        ctx.fillRect(pipe.x, pipe.bottom, 30, canvas.height - pipe.bottom);
+      });
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      frame++;
+
+      // Criar novos canos
+      if (frame % 100 === 0) createPipe();
+
+      // Aumentar dificuldade gradualmente
+      if (frame % 500 === 0) pipeSpeed += 0.3;
+
+      // Mover canos
+      pipes.forEach(pipe => { pipe.x -= pipeSpeed; });
+
+      // Remover canos fora da tela
+      pipes = pipes.filter(pipe => pipe.x + 30 > 0);
+
+      // Gravidade
+      velocity += gravity;
+      birdY += velocity;
+
+      // Colisão com canos
+      pipes.forEach(pipe => {
+        if (
+          birdX + birdRadius > pipe.x &&
+          birdX - birdRadius < pipe.x + 30 &&
+          (birdY - birdRadius < pipe.top || birdY + birdRadius > pipe.bottom)
+        ) {
+          hitSound.play();
+          gameOver = true;
+        }
+
+        // Pontuação
+        if (pipe.x + 30 < birdX - birdRadius && !pipe.scored) {
+          score++;
+          pipe.scored = true;
+          pointSound.play();
+          scoreEl.textContent = score;
+        }
+      });
+
+      // Colisão com chão ou teto
+      if (birdY + birdRadius > canvas.height || birdY - birdRadius < 0) {
+        hitSound.play();
+        gameOver = true;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBird();
+      drawPipes();
+    }
+
+    function loop() {
+      update();
+      draw();
+      if (!gameOver) requestAnimationFrame(loop);
+      else {
+        ctx.fillStyle = "white";
+        ctx.font = "25px sans-serif";
+        ctx.fillText("Game Over", canvas.width / 2 - 60, canvas.height / 2);
+      }
+    }
+
+    // Pular
+    document.addEventListener("touchstart", () => {
+      if (!gameOver) {
+        velocity = jump;
+        jumpSound.play();
+      } else {
+        // Reiniciar jogo
+        birdY = 150;
+        velocity = 0;
+        pipes = [];
+        score = 0;
+        scoreEl.textContent = score;
+        frame = 0;
+        pipeSpeed = 1.5;
+        gameOver = false;
+        loop();
+      }
+    });
+
+    loop();
+  </script>
+</body>
+</html>
